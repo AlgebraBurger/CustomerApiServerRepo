@@ -2,117 +2,105 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
+using System.Data.Entity.Infrastructure;
 using System.Linq;
 using System.Net;
-using System.Web;
-using System.Web.Mvc;
+using System.Net.Http;
+using System.Web.Http;
+using System.Web.Http.Description;
 using CustomerApiServer.Models;
+using System.Web.Http.Cors;
 
 namespace CustomerApiServer.Controllers
 {
-    public class CustomersController : Controller
+    [EnableCors(origins: "http://localhost:54757", headers: "*", methods: "*")]
+    public class CustomersController : ApiController
     {
         private CrmDbContext db = new CrmDbContext();
 
-        // GET: Customers
-        public ActionResult Index()
+        // GET: api/Customers
+        public IQueryable<Customer> GetCustomers()
         {
-            return View(db.Customers.ToList());
+            return db.Customers;
         }
 
-        // GET: Customers/Details/5
-        public ActionResult Details(int? id)
+        // GET: api/Customers/5
+        [ResponseType(typeof(Customer))]
+        public IHttpActionResult GetCustomer(int id)
         {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
             Customer customer = db.Customers.Find(id);
             if (customer == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
-            return View(customer);
+
+            return Ok(customer);
         }
 
-        // GET: Customers/Create
-        public ActionResult Create()
+        // PUT: api/Customers/5
+        [ResponseType(typeof(void))]
+        public IHttpActionResult PutCustomer(int id, Customer customer)
         {
-            return View();
-        }
-
-        // POST: Customers/Create
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,FullName,Email,DateCreated")] Customer customer)
-        {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                db.Customers.Add(customer);
+                return BadRequest(ModelState);
+            }
+
+            if (id != customer.ID)
+            {
+                return BadRequest();
+            }
+
+            db.Entry(customer).State = EntityState.Modified;
+
+            try
+            {
                 db.SaveChanges();
-                return RedirectToAction("Index");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!CustomerExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
             }
 
-            return View(customer);
+            return StatusCode(HttpStatusCode.NoContent);
         }
 
-        // GET: Customers/Edit/5
-        public ActionResult Edit(int? id)
+        // POST: api/Customers
+        [ResponseType(typeof(Customer))]
+        public IHttpActionResult PostCustomer(Customer customer)
         {
-            if (id == null)
+            if (!ModelState.IsValid)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                return BadRequest(ModelState);
             }
+
+            db.Customers.Add(customer);
+            db.SaveChanges();
+
+            return CreatedAtRoute("DefaultApi", new { id = customer.ID }, customer);
+        }
+
+        // DELETE: api/Customers/5
+        [ResponseType(typeof(Customer))]
+        public IHttpActionResult DeleteCustomer(int id)
+        {
             Customer customer = db.Customers.Find(id);
             if (customer == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
-            return View(customer);
-        }
 
-        // POST: Customers/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,FullName,Email,DateCreated")] Customer customer)
-        {
-            if (ModelState.IsValid)
-            {
-                db.Entry(customer).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-            return View(customer);
-        }
-
-        // GET: Customers/Delete/5
-        public ActionResult Delete(int? id)
-        {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Customer customer = db.Customers.Find(id);
-            if (customer == null)
-            {
-                return HttpNotFound();
-            }
-            return View(customer);
-        }
-
-        // POST: Customers/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public ActionResult DeleteConfirmed(int id)
-        {
-            Customer customer = db.Customers.Find(id);
             db.Customers.Remove(customer);
             db.SaveChanges();
-            return RedirectToAction("Index");
+
+            return Ok(customer);
         }
 
         protected override void Dispose(bool disposing)
@@ -122,6 +110,11 @@ namespace CustomerApiServer.Controllers
                 db.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        private bool CustomerExists(int id)
+        {
+            return db.Customers.Count(e => e.ID == id) > 0;
         }
     }
 }

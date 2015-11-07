@@ -10,6 +10,8 @@ namespace CustomerApiServer
     {
         public static void Register(HttpConfiguration config)
         {
+            config.EnableCors();
+
             config.Formatters.JsonFormatter.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
             // Web API configuration and services
 
